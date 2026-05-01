@@ -1,0 +1,1 @@
+"""Renard chess platform package."""
