@@ -91,11 +91,8 @@ class GameApp(tk.Tk):
         self._start_game()
 
     def _build_ui(self) -> None:
-        self.columnconfigure(0, weight=1)
-        self.rowconfigure(0, weight=1)
-
         main = ttk.Frame(self, padding=16)
-        main.grid(row=0, column=0, sticky="nsew")
+        main.pack(fill="both", expand=True)
         main.columnconfigure(0, weight=1)
         main.columnconfigure(1, weight=0)
         main.rowconfigure(0, weight=1)
@@ -105,6 +102,7 @@ class GameApp(tk.Tk):
 
         panel = ttk.Frame(main, width=240)
         panel.grid(row=0, column=1, sticky="ns")
+        panel.grid_propagate(False)
         panel.columnconfigure(0, weight=1)
 
         ttk.Label(panel, text="棋类对战平台", font=("Arial", 18, "bold")).grid(row=0, column=0, sticky="w", pady=(0, 16))

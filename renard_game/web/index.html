@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Renard Game - 棋类对战平台</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="board-shell">
+        <div class="board-header">
+          <div>
+            <h1>棋类对战平台</h1>
+            <p id="status">正在加载...</p>
+          </div>
+          <div class="turn" id="turnBadge">黑方</div>
+        </div>
+        <div id="board" class="board" aria-label="棋盘"></div>
+      </section>
+
+      <aside class="panel">
+        <section>
+          <h2>开局设置</h2>
+          <label>
+            类型
+            <select id="gameType">
+              <option value="gomoku">五子棋</option>
+              <option value="go">围棋</option>
+            </select>
+          </label>
+          <label>
+            棋盘大小
+            <input id="boardSize" type="number" min="8" max="19" value="15" />
+          </label>
+          <button id="startBtn">开始游戏</button>
+        </section>
+
+        <section>
+          <h2>对局操作</h2>
+          <button id="undoBtn">悔棋一步</button>
+          <button id="passBtn">围棋虚着</button>
+          <button id="resignBtn">投子认负</button>
+        </section>
+
+        <section>
+          <h2>存档</h2>
+          <a class="button" href="/api/export" download="renard_save.json">导出存档</a>
+          <label class="file-button">
+            导入存档
+            <input id="importFile" type="file" accept="application/json,.json" />
+          </label>
+        </section>
+
+        <section class="log-section">
+          <h2>操作反馈</h2>
+          <div id="message" class="message">欢迎。</div>
+        </section>
+      </aside>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

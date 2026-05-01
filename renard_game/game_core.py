@@ -103,17 +103,23 @@ class BoardGame(ABC):
         return "已悔棋一步。"
 
     def save(self, filename: str) -> str:
-        data = {
+        Path(filename).write_text(json.dumps(self.to_data(), ensure_ascii=False, indent=2), encoding="utf-8")
+        return f"局面已保存到 {filename}"
+
+    def to_data(self) -> dict:
+        return {
             "type": self.name,
             "size": self.size,
             "snapshot": asdict(self.snapshot()),
         }
-        Path(filename).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        return f"局面已保存到 {filename}"
 
     @classmethod
     def load(cls, filename: str) -> "BoardGame":
         data = json.loads(Path(filename).read_text(encoding="utf-8"))
+        return cls.from_data(data)
+
+    @classmethod
+    def from_data(cls, data: dict) -> "BoardGame":
         if not isinstance(data, dict):
             raise ValueError("存档格式不合法。")
         game_type = data.get("type")
@@ -123,6 +129,12 @@ class BoardGame(ABC):
             raise ValueError("存档缺少必要字段。")
         game = GameFactory.create(game_type, size)
         snapshot = GameSnapshot(**snap_data)
+        if snapshot.current_player not in {BLACK, WHITE}:
+            raise ValueError("存档当前行棋方不合法。")
+        if snapshot.winner not in {BLACK, WHITE, None}:
+            raise ValueError("存档胜者不合法。")
+        if not isinstance(snapshot.game_over, bool) or not isinstance(snapshot.pass_count, int) or snapshot.pass_count < 0:
+            raise ValueError("存档状态字段不合法。")
         if len(snapshot.board) != size or any(len(row) != size for row in snapshot.board):
             raise ValueError("存档棋盘大小不匹配。")
         legal_cells = {EMPTY, BLACK, WHITE}
@@ -181,7 +193,15 @@ class GoGame(BoardGame):
                 yield nr, nc
 
     def group_and_liberties(self, row: int, col: int) -> tuple[set[tuple[int, int]], set[tuple[int, int]]]:
-        color = self.board[row][col]
+        return self.group_and_liberties_on(self.board, row, col)
+
+    def group_and_liberties_on(
+        self,
+        board: list[list[str]],
+        row: int,
+        col: int,
+    ) -> tuple[set[tuple[int, int]], set[tuple[int, int]]]:
+        color = board[row][col]
         stack = [(row, col)]
         group = set()
         liberties = set()
@@ -191,30 +211,58 @@ class GoGame(BoardGame):
                 continue
             group.add((r, c))
             for nr, nc in self.neighbors(r, c):
-                if self.board[nr][nc] == EMPTY:
+                if board[nr][nc] == EMPTY:
                     liberties.add((nr, nc))
-                elif self.board[nr][nc] == color:
+                elif board[nr][nc] == color:
                     stack.append((nr, nc))
         return group, liberties
 
     def _place(self, row: int, col: int) -> str:
         player = self.current_player
-        self.board[row][col] = player
+        next_board, captured, error = self.simulate_move(row, col, player)
+        if error:
+            self.restore(self.history.pop())
+            return error
+        self.board = next_board
+        self.pass_count = 0
+        self.switch_player()
+        message = f"{player_label(player)}在 ({row + 1},{col + 1}) 落子成功，提子 {captured} 枚。"
+        if not self.has_any_legal_move(self.current_player):
+            self.finish_by_score()
+            return message + f"{player_label(self.current_player)}无合法落点，{self.score_text()}"
+        return message
+
+    def simulate_move(self, row: int, col: int, player: str) -> tuple[list[list[str]], int, str | None]:
+        next_board = copy.deepcopy(self.board)
+        next_board[row][col] = player
         captured = 0
         for nr, nc in list(self.neighbors(row, col)):
-            if self.board[nr][nc] == opponent(player):
-                group, liberties = self.group_and_liberties(nr, nc)
+            if next_board[nr][nc] == opponent(player):
+                group, liberties = self.group_and_liberties_on(next_board, nr, nc)
                 if not liberties:
                     captured += len(group)
                     for gr, gc in group:
-                        self.board[gr][gc] = EMPTY
-        own_group, own_liberties = self.group_and_liberties(row, col)
+                        next_board[gr][gc] = EMPTY
+        own_group, own_liberties = self.group_and_liberties_on(next_board, row, col)
         if not own_liberties:
-            self.restore(self.history.pop())
-            return "该落子属于自杀手，位置不合法。"
-        self.pass_count = 0
-        self.switch_player()
-        return f"{player_label(player)}在 ({row + 1},{col + 1}) 落子成功，提子 {captured} 枚。"
+            return next_board, captured, "该落子属于自杀手，位置不合法。"
+        if self.is_repeated_position(next_board):
+            return next_board, captured, "该落子会造成重复局面，违反打劫规则。"
+        return next_board, captured, None
+
+    def is_repeated_position(self, board: list[list[str]]) -> bool:
+        board_key = tuple(tuple(row) for row in board)
+        return any(tuple(tuple(row) for row in snap.board) == board_key for snap in self.history)
+
+    def has_any_legal_move(self, player: str) -> bool:
+        for row in range(self.size):
+            for col in range(self.size):
+                if self.board[row][col] != EMPTY:
+                    continue
+                _, _, error = self.simulate_move(row, col, player)
+                if error is None:
+                    return True
+        return False
 
     def pass_turn(self) -> str:
         if self.game_over:
