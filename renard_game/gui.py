@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import filedialog, ttk
 
 from .game_core import BLACK, EMPTY, WHITE, BoardGame, GameFactory
 
@@ -137,14 +137,20 @@ class GameApp(tk.Tk):
         ttk.Button(actions, text="围棋虚着", command=self._pass_turn).grid(row=2, column=0, sticky="ew", pady=3)
         ttk.Button(actions, text="投子认负", command=self._resign).grid(row=3, column=0, sticky="ew", pady=3)
 
+        archive = ttk.LabelFrame(panel, text="存档", padding=12)
+        archive.grid(row=3, column=0, sticky="ew", pady=(0, 12))
+        archive.columnconfigure(0, weight=1)
+        ttk.Button(archive, text="保存局面", command=self._save_game).grid(row=0, column=0, sticky="ew", pady=3)
+        ttk.Button(archive, text="读取存档", command=self._load_game).grid(row=1, column=0, sticky="ew", pady=3)
+
         status_box = ttk.LabelFrame(panel, text="状态", padding=12)
-        status_box.grid(row=3, column=0, sticky="ew", pady=(0, 12))
+        status_box.grid(row=4, column=0, sticky="ew", pady=(0, 12))
         self.status = tk.StringVar(value="尚未开始")
         ttk.Label(status_box, textvariable=self.status, wraplength=210, justify="left").grid(row=0, column=0, sticky="w")
 
         log_box = ttk.LabelFrame(panel, text="操作反馈", padding=8)
-        log_box.grid(row=4, column=0, sticky="nsew")
-        panel.rowconfigure(4, weight=1)
+        log_box.grid(row=5, column=0, sticky="nsew")
+        panel.rowconfigure(5, weight=1)
         log_box.rowconfigure(0, weight=1)
         log_box.columnconfigure(0, weight=1)
         self.log = tk.Text(log_box, width=28, height=12, wrap="word", state="disabled")
@@ -195,6 +201,41 @@ class GameApp(tk.Tk):
             return
         self._append_log(self.game.resign())
         self._refresh()
+
+    def _save_game(self) -> None:
+        if self.game is None:
+            self._append_log("请先开始游戏。")
+            return
+        filename = filedialog.asksaveasfilename(
+            title="保存局面",
+            defaultextension=".json",
+            filetypes=(("JSON 存档", "*.json"), ("所有文件", "*.*")),
+        )
+        if not filename:
+            self._append_log("已取消保存。")
+            return
+        try:
+            self._append_log(self.game.save(filename))
+        except Exception as exc:
+            self._append_log(f"保存失败：{exc}")
+
+    def _load_game(self) -> None:
+        filename = filedialog.askopenfilename(
+            title="读取存档",
+            filetypes=(("JSON 存档", "*.json"), ("所有文件", "*.*")),
+        )
+        if not filename:
+            self._append_log("已取消读取。")
+            return
+        try:
+            self.game = BoardGame.load(filename)
+            self.last_start = (self.game.name, self.game.size)
+            self.game_type.set(self.game.name)
+            self.board_size.set(self.game.size)
+            self._append_log(f"读取存档成功：{filename}")
+            self._refresh()
+        except Exception as exc:
+            self._append_log(f"读取失败：{exc}")
 
     def _refresh(self) -> None:
         self.board.set_game(self.game)

@@ -114,8 +114,21 @@ class BoardGame(ABC):
     @classmethod
     def load(cls, filename: str) -> "BoardGame":
         data = json.loads(Path(filename).read_text(encoding="utf-8"))
-        game = GameFactory.create(data["type"], data["size"])
-        game.restore(GameSnapshot(**data["snapshot"]))
+        if not isinstance(data, dict):
+            raise ValueError("存档格式不合法。")
+        game_type = data.get("type")
+        size = data.get("size")
+        snap_data = data.get("snapshot")
+        if not isinstance(game_type, str) or not isinstance(size, int) or not isinstance(snap_data, dict):
+            raise ValueError("存档缺少必要字段。")
+        game = GameFactory.create(game_type, size)
+        snapshot = GameSnapshot(**snap_data)
+        if len(snapshot.board) != size or any(len(row) != size for row in snapshot.board):
+            raise ValueError("存档棋盘大小不匹配。")
+        legal_cells = {EMPTY, BLACK, WHITE}
+        if any(cell not in legal_cells for row in snapshot.board for cell in row):
+            raise ValueError("存档棋盘包含非法棋子。")
+        game.restore(snapshot)
         return game
 
     def status_text(self) -> str:
