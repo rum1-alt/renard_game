@@ -82,7 +82,6 @@ document.querySelector("#startBtn").addEventListener("click", () => {
 
 document.querySelector("#restartBtn").addEventListener("click", () => api("restart").catch(showError));
 document.querySelector("#undoBtn").addEventListener("click", () => api("undo").catch(showError));
-document.querySelector("#passBtn").addEventListener("click", () => api("pass").catch(showError));
 document.querySelector("#resignBtn").addEventListener("click", () => api("resign").catch(showError));
 
 document.querySelector("#importFile").addEventListener("change", async (event) => {

@@ -101,8 +101,6 @@ class WebHandler(BaseHTTPRequestHandler):
             return f"已重新开始{SESSION.game.display_name}，棋盘大小 {size}x{size}。"
         if action == "move":
             return SESSION.game.place(int(payload["row"]), int(payload["col"]))
-        if action == "pass":
-            return SESSION.game.pass_turn()
         if action == "undo":
             return SESSION.game.undo()
         if action == "resign":
