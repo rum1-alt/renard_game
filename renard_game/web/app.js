@@ -3,7 +3,7 @@ const statusEl = document.querySelector("#status");
 const turnBadge = document.querySelector("#turnBadge");
 const messageEl = document.querySelector("#message");
 const gameTypeEl = document.querySelector("#gameType");
-const boardSizeEl = document.querySelector("#boardSize");
+const defaultBoardSize = 15;
 
 const labels = {
   B: "黑方",
@@ -31,7 +31,6 @@ async function loadState() {
 
 function render(state) {
   gameTypeEl.value = state.gameType;
-  boardSizeEl.value = state.size;
   statusEl.textContent = `${state.displayName} · ${state.status}`;
   turnBadge.textContent = state.gameOver ? `结果：${labels[state.winner]}` : labels[state.currentPlayer];
   messageEl.textContent = state.message;
@@ -77,7 +76,7 @@ function showError(error) {
 document.querySelector("#startBtn").addEventListener("click", () => {
   api("start", {
     gameType: gameTypeEl.value,
-    size: Number(boardSizeEl.value),
+    size: defaultBoardSize,
   }).catch(showError);
 });
 
