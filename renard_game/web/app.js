@@ -2,10 +2,6 @@ const boardEl = document.querySelector("#board");
 const statusEl = document.querySelector("#status");
 const turnBadge = document.querySelector("#turnBadge");
 const messageEl = document.querySelector("#message");
-const logEl = document.querySelector("#log");
-const hintSection = document.querySelector("#hintSection");
-const hintsEl = document.querySelector("#hints");
-const toggleHintsBtn = document.querySelector("#toggleHintsBtn");
 const gameTypeEl = document.querySelector("#gameType");
 const boardSizeEl = document.querySelector("#boardSize");
 
@@ -39,8 +35,6 @@ function render(state) {
   statusEl.textContent = `${state.displayName} · ${state.status}`;
   turnBadge.textContent = state.gameOver ? `结果：${labels[state.winner]}` : labels[state.currentPlayer];
   messageEl.textContent = state.message;
-  renderHints(state);
-  renderLog(state.messages || [state.message]);
 
   boardEl.style.gridTemplateColumns = `repeat(${state.size}, 1fr)`;
   boardEl.replaceChildren();
@@ -63,34 +57,6 @@ function render(state) {
       boardEl.append(cell);
     });
   });
-}
-
-function renderHints(state) {
-  hintSection.classList.toggle("hidden", !state.hintsVisible);
-  toggleHintsBtn.textContent = state.hintsVisible ? "隐藏" : "显示";
-  const hints = [
-    "点击棋盘交叉点落子，黑白双方自动轮换。",
-    "悔棋会回退一步，棋局结束后仍可重新开始。",
-    "导出存档会下载 JSON 文件，导入存档会覆盖当前局面。",
-  ];
-  if (state.gameType === "go") {
-    hints.push("围棋支持提子、自杀手拦截、打劫重复局面拦截和虚着。");
-  } else {
-    hints.push("五子棋任一方向连成五子会自动判胜。");
-  }
-  hintsEl.replaceChildren(...hints.map((text) => {
-    const item = document.createElement("li");
-    item.textContent = text;
-    return item;
-  }));
-}
-
-function renderLog(messages) {
-  logEl.replaceChildren(...messages.slice().reverse().map((text) => {
-    const item = document.createElement("li");
-    item.textContent = text;
-    return item;
-  }));
 }
 
 function starPoints(size) {
@@ -119,7 +85,6 @@ document.querySelector("#restartBtn").addEventListener("click", () => api("resta
 document.querySelector("#undoBtn").addEventListener("click", () => api("undo").catch(showError));
 document.querySelector("#passBtn").addEventListener("click", () => api("pass").catch(showError));
 document.querySelector("#resignBtn").addEventListener("click", () => api("resign").catch(showError));
-toggleHintsBtn.addEventListener("click", () => api("toggleHints").catch(showError));
 
 document.querySelector("#importFile").addEventListener("change", async (event) => {
   const file = event.target.files[0];

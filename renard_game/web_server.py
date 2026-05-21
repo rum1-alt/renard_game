@@ -19,17 +19,10 @@ class GameSession:
     def __init__(self):
         self.game: BoardGame = GameFactory.create("gomoku", 15)
         self.last_message = "已开始五子棋，棋盘大小 15x15。"
-        self.messages = [self.last_message]
-        self.hints_visible = True
         self.lock = threading.Lock()
 
-    def record(self, message: str, reset: bool = False) -> None:
+    def record(self, message: str) -> None:
         self.last_message = message
-        if reset:
-            self.messages = [message]
-            return
-        self.messages.append(message)
-        self.messages = self.messages[-12:]
 
     def state(self) -> dict:
         return {
@@ -42,8 +35,6 @@ class GameSession:
             "winner": self.game.winner,
             "status": self.game.status_text(),
             "message": self.last_message,
-            "messages": self.messages,
-            "hintsVisible": self.hints_visible,
         }
 
 
@@ -89,40 +80,36 @@ class WebHandler(BaseHTTPRequestHandler):
         try:
             payload = self._read_json()
             with SESSION.lock:
-                message, reset_log = self._handle_action(payload)
+                message = self._handle_action(payload)
                 if message:
-                    SESSION.record(message, reset=reset_log)
+                    SESSION.record(message)
                 self._send_json(SESSION.state())
         except Exception as exc:
             self._send_json({"error": str(exc)}, status=400)
 
-    def _handle_action(self, payload: dict) -> tuple[str, bool]:
+    def _handle_action(self, payload: dict) -> str:
         action = payload.get("action")
         if action == "start":
             game_type = str(payload.get("gameType", "gomoku"))
             size = int(payload.get("size", 15))
             SESSION.game = GameFactory.create(game_type, size)
-            return f"已开始{SESSION.game.display_name}，棋盘大小 {size}x{size}。", True
+            return f"已开始{SESSION.game.display_name}，棋盘大小 {size}x{size}。"
         if action == "restart":
             game_type = SESSION.game.name
             size = SESSION.game.size
             SESSION.game = GameFactory.create(game_type, size)
-            return f"已重新开始{SESSION.game.display_name}，棋盘大小 {size}x{size}。", True
+            return f"已重新开始{SESSION.game.display_name}，棋盘大小 {size}x{size}。"
         if action == "move":
-            return SESSION.game.place(int(payload["row"]), int(payload["col"])), False
+            return SESSION.game.place(int(payload["row"]), int(payload["col"]))
         if action == "pass":
-            return SESSION.game.pass_turn(), False
+            return SESSION.game.pass_turn()
         if action == "undo":
-            return SESSION.game.undo(), False
+            return SESSION.game.undo()
         if action == "resign":
-            return SESSION.game.resign(), False
+            return SESSION.game.resign()
         if action == "import":
             SESSION.game = BoardGame.from_data(payload["data"])
-            return "读取浏览器存档成功。", True
-        if action == "toggleHints":
-            SESSION.hints_visible = not SESSION.hints_visible
-            message = "已显示操作提示。" if SESSION.hints_visible else "已隐藏操作提示。"
-            return message, False
+            return "读取浏览器存档成功。"
         raise ValueError("未知操作。")
 
     def _read_json(self) -> dict:
